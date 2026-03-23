@@ -48,9 +48,19 @@ export default function AdminDashboard() {
     e.preventDefault();
     setIsSaving(true);
     
-    // Clean virtual fields before updating database
-    const { categories, ...dataToUpdate } = editingProduct;
+    // Clean ALL virtual and non-primitive fields before updating database
+    const dataToUpdate = { ...editingProduct };
+    delete dataToUpdate.categories;
+    delete dataToUpdate.id;
+    delete dataToUpdate.created_at;
     
+    // Safety check: remove any other nested objects that might come from joins
+    Object.keys(dataToUpdate).forEach(key => {
+      if (typeof dataToUpdate[key] === 'object' && dataToUpdate[key] !== null) {
+        delete dataToUpdate[key];
+      }
+    });
+
     let error;
     if (editingProduct.id) {
       const { error: updateError } = await supabase.from('products').update(dataToUpdate).eq('id', editingProduct.id);
@@ -81,8 +91,10 @@ export default function AdminDashboard() {
       }
     }
 
-    if (error) alert(`Error: ${error.message}`);
-    else {
+    if (error) {
+      console.error('Full Supabase Error:', error);
+      alert(`Error: ${error.message}`);
+    } else {
       setEditingProduct(null);
       setProductAllergens([]);
       fetchData();
@@ -149,36 +161,36 @@ export default function AdminDashboard() {
   return (
     <div className="h-screen bg-black text-zinc-100 flex flex-col font-jakarta overflow-hidden">
       {/* 1. Header Fijo Superior */}
-      <header className="flex-shrink-0 bg-black border-b border-white/10 px-10 py-4 flex items-center justify-between z-40">
+      <header className="flex-shrink-0 bg-black border-b border-white/10 px-10 py-2 flex items-center justify-between z-40">
         <div className="w-32 flex justify-start">
              {/* Espaciador para centrar logo */}
         </div>
         <div className="flex flex-col items-center">
-          <div className="cas-padri-logo text-5xl">
+          <div className="cas-padri-logo text-3xl">
             Cas Padrí
             <span className="cas-padri-year">Admin Panel • 1965</span>
           </div>
         </div>
         <div className="w-32 flex justify-end">
-           <button onClick={handleLogout} className="group flex items-center gap-3 px-5 py-3 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-500 hover:bg-red-500/20 transition-all">
-             <span className="text-[10px] font-black uppercase tracking-widest hidden sm:block">Salir</span>
-             <LogOut className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+           <button onClick={handleLogout} className="group flex items-center gap-2 px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-500 hover:bg-red-500/20 transition-all">
+             <span className="text-[9px] font-black uppercase tracking-widest hidden sm:block">Salir</span>
+             <LogOut className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
            </button>
         </div>
       </header>
 
       {/* 1.5 Selectores en Cascada (Estilo Cliente Mejorado) */}
-      <div className="bg-black px-10 pt-8 flex flex-col gap-8 flex-shrink-0">
+      <div className="bg-black px-10 pt-2 flex flex-col gap-2 flex-shrink-0">
         {/* Section Tabs (Food, Drink, etc) */}
-        <div className="flex flex-col gap-2">
-          <div className="flex gap-4 overflow-x-auto custom-scrollbar pb-6 min-w-0">
+        <div className="flex flex-col gap-1">
+          <div className="flex gap-2 overflow-x-auto custom-scrollbar pb-2 min-w-0">
             {sections.map((section) => {
               const isActive = selectedSection === section;
               return (
                 <button 
                   key={section} 
                   onClick={() => { setSelectedSection(section); setSelectedCategory(null); }}
-                  className={`flex items-center gap-3 px-8 py-4 rounded-3xl whitespace-nowrap text-xs font-black uppercase tracking-widest transition-all border-2 relative flex-shrink-0 ${
+                  className={`flex items-center gap-2 px-5 py-2 rounded-xl whitespace-nowrap text-[9px] font-black uppercase tracking-widest transition-all border-2 relative flex-shrink-0 ${
                     isActive 
                       ? 'bg-primary text-black border-primary shadow-lg shadow-primary/20' 
                       : 'bg-zinc-900/50 text-zinc-500 border-zinc-800 hover:border-zinc-700 hover:text-zinc-300'
@@ -200,15 +212,15 @@ export default function AdminDashboard() {
         </div>
         
         {/* Category Tabs (Subcategories) */}
-        <div className="flex flex-col gap-4">
-          <div className="flex gap-10 overflow-x-auto custom-scrollbar pt-2 pb-6 min-w-0">
+        <div className="flex flex-col gap-1">
+          <div className="flex gap-6 overflow-x-auto custom-scrollbar pt-1 pb-2 min-w-0">
             {currentSectionCategories.map((cat) => {
               const isActive = activeCategoryId === cat.id;
               return (
                 <button 
                   key={cat.id} 
                   onClick={() => setSelectedCategory(cat.id)}
-                  className={`flex-shrink-0 pb-4 text-[12px] font-black uppercase tracking-[0.25em] transition-all relative ${
+                  className={`flex-shrink-0 pb-1 text-[9px] font-black uppercase tracking-[0.25em] transition-all relative ${
                     isActive ? 'text-primary' : 'text-zinc-600 hover:text-zinc-400'
                   }`}
                 >
@@ -219,54 +231,54 @@ export default function AdminDashboard() {
           </div>
           
           {/* Search and Action Bar */}
-          <div className="flex items-center justify-between gap-4 py-2">
+          <div className="flex items-center justify-between gap-4 pb-1">
             <div className="relative flex-1">
-              <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-zinc-600" />
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-600" />
               <input 
                 type="text" 
                 placeholder="Buscar en categoría..." 
                 value={searchTerm} 
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full bg-zinc-900 border border-white/10 rounded-[1.5rem] py-3.5 pl-14 pr-8 text-[14px] focus:outline-none focus:border-primary/40 focus:bg-zinc-800/50 transition-all font-semibold placeholder:text-zinc-700 shadow-inner"
+                className="w-full bg-zinc-900 border border-white/10 rounded-lg py-2 pl-10 pr-6 text-[12px] focus:outline-none focus:border-primary/40 focus:bg-zinc-800/50 transition-all font-semibold placeholder:text-zinc-700 shadow-inner"
               />
             </div>
             
             <button 
               onClick={createNewProduct}
-              className="flex-shrink-0 bg-primary text-black px-4 py-3.5 rounded-[1rem] font-black uppercase text-[9px] tracking-tight flex items-center gap-1.5 hover:scale-105 active:scale-95 transition-all shadow-xl shadow-primary/10"
+              className="flex-shrink-0 bg-primary text-black px-4 py-2 rounded-lg font-black uppercase text-[8px] tracking-tight flex items-center gap-1.5 hover:scale-105 active:scale-95 transition-all shadow-xl shadow-primary/10"
             >
-              <Plus className="w-3.5 h-3.5 stroke-[4]" /> NUEVO PRODUCTO
+              <Plus className="w-3 h-3 stroke-[4]" /> NUEVO PRODUCTO
             </button>
           </div>
         </div>
       </div>
 
       {/* 2. Área de Tabla con Scroll */}
-      <main className="flex-1 flex flex-col min-h-0 overflow-hidden px-10 pt-6 pb-10">
-        <div className="flex-1 flex flex-col bg-zinc-900/10 border border-white/10 rounded-[2.5rem] overflow-hidden shadow-2xl relative">
+      <main className="flex-1 flex flex-col min-h-0 overflow-hidden px-10 pt-1 pb-4">
+        <div className="flex-1 flex flex-col bg-zinc-900/10 border border-white/10 rounded-[1.5rem] overflow-hidden shadow-2xl relative">
           
           {/* Encabezado Fijo de la Tabla */}
           <div className="flex-shrink-0 bg-zinc-900/40 backdrop-blur-md border-b border-white/10 z-20">
-             <div className="flex text-[11px] text-zinc-500 font-black uppercase tracking-[0.4em] min-w-[1000px]">
-                <div className="px-10 py-6 flex-1">Producto / Identificador</div>
-                <div className="px-10 py-6 w-48 text-center border-l border-white/5">Precio Unitario</div>
-                <div className="px-10 py-6 w-40 text-center border-l border-white/5">Estado</div>
-                <div className="px-10 py-6 w-32 text-right border-l border-white/5 pr-12">Detalles</div>
+             <div className="flex text-[9px] text-zinc-500 font-black uppercase tracking-[0.4em] min-w-[700px]">
+                <div className="px-6 py-3 w-[350px] flex-shrink-0">Producto / Identificador</div>
+                <div className="px-6 py-3 w-24 text-center border-l border-white/5">Precio</div>
+                <div className="px-6 py-3 w-32 text-center border-l border-white/5">Estado</div>
+                <div className="px-1 py-3 w-[50px] text-center border-l border-white/5">Edit</div>
              </div>
           </div>
 
           {/* Cuerpo de la Tabla con Scroll Vertical y Horizontal */}
           <div className="flex-1 overflow-auto custom-scrollbar relative">
-             <div className="min-w-[1000px] divide-y divide-white/10">
+             <div className="min-w-[700px] divide-y divide-white/10">
                 {filteredProducts.map((p) => (
                   <div key={p.id} className="flex group hover:bg-white/[0.02] transition-colors items-center">
-                    <div className="px-10 py-5 flex-1 cursor-default">
+                    <div className="px-6 py-2.5 w-[350px] flex-shrink-0 cursor-default">
                       <div className="flex items-center gap-6">
-                        <div className="relative group/img w-16 h-16 bg-zinc-800 rounded-2xl overflow-hidden border border-white/10 flex-shrink-0 shadow-lg">
+                        <div className="relative group/img w-12 h-12 bg-zinc-800 rounded-lg overflow-hidden border border-white/10 flex-shrink-0 shadow-lg">
                            <img src={p.image_url || 'https://via.placeholder.com/150'} className="w-full h-full object-contain group-hover/img:scale-110 transition-transform duration-500" />
                            <label className="absolute inset-0 bg-black/70 opacity-0 group-hover/img:opacity-100 flex items-center justify-center cursor-pointer transition-opacity duration-300">
                               <input type="file" className="hidden" accept="image/*" onChange={(e) => handleImageUpload(e, p.product_code)} />
-                              {uploadStatus[p.product_code] === 'uploading' ? <div className="animate-spin border-2 border-primary border-t-transparent w-5 h-5 rounded-full" /> : <Upload className="w-5 h-5 text-primary" />}
+                              {uploadStatus[p.product_code] === 'uploading' ? <div className="animate-spin border-2 border-primary border-t-transparent w-3.5 h-3.5 rounded-full" /> : <Upload className="w-3.5 h-3.5 text-primary" />}
                            </label>
                         </div>
                         <div>
@@ -279,22 +291,22 @@ export default function AdminDashboard() {
                         </div>
                       </div>
                     </div>
-                    <div className="px-10 py-5 w-48 text-center border-l border-white/5">
-                      <div className="text-lg font-black text-white">{p.price_main}€</div>
-                      {p.price_secondary && <div className="text-[10px] text-zinc-500 mt-1 font-bold uppercase tracking-wider">{p.price_secondary}€ Copa</div>}
+                    <div className="px-6 py-2.5 w-24 text-center border-l border-white/5">
+                      <div className="text-sm font-black text-white">{p.price_main}€</div>
+                      {p.price_secondary && <div className="text-[9px] text-zinc-500 mt-0.5 font-bold uppercase tracking-wider">{p.price_secondary}€</div>}
                     </div>
-                    <div className="px-10 py-5 w-40 text-center border-l border-white/5">
+                    <div className="px-6 py-2.5 w-32 text-center border-l border-white/5">
                        <button onClick={() => toggleVisibility(p.id, p.is_visible)} 
-                         className={`inline-flex items-center gap-2 px-4 py-2 rounded-2xl text-[9px] font-black uppercase tracking-widest border transition-all duration-300 shadow-sm ${
+                         className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest border transition-all duration-300 shadow-sm ${
                            p.is_visible 
                              ? 'bg-green-500/10 text-green-500 border-green-500/20 hover:bg-green-500/20' 
                              : 'bg-red-500/10 text-red-500 border-red-500/20 hover:bg-red-500/20'
                          }`}>
-                         <span className={`w-1.5 h-1.5 rounded-full ${p.is_visible ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
+                         <span className={`w-0.5 h-0.5 rounded-full ${p.is_visible ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
                          {p.is_visible ? 'En Carta' : 'Oculto'}
                        </button>
                     </div>
-                    <div className="px-10 py-5 w-32 text-right border-l border-white/5 pr-12">
+                    <div className="px-1 py-2.5 w-[50px] text-center border-l border-white/5">
                        <button onClick={async () => {
                           setEditingProduct(p);
                           // Fetch current allergens for this product
@@ -303,8 +315,8 @@ export default function AdminDashboard() {
                             .select('alergeno_id')
                             .eq('producto_id', p.id);
                           if (relAl) setProductAllergens(relAl.map(r => r.alergeno_id));
-                        }} className="p-3 text-zinc-500 hover:text-primary bg-zinc-800/50 hover:bg-zinc-800 border border-white/5 rounded-xl hover:scale-105 active:scale-95 transition-all shadow-xl">
-                          <Edit2 className="w-4 h-4" />
+                        }} className="p-2 text-zinc-500 hover:text-primary bg-zinc-800/50 hover:bg-zinc-800 border border-white/5 rounded-md hover:scale-105 active:scale-95 transition-all shadow-xl mx-auto">
+                          <Edit2 className="w-3 h-3" />
                        </button>
                     </div>
                   </div>

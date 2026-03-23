@@ -362,9 +362,13 @@ export default function MenuClient() {
         )}
       </AnimatePresence>
 
-      <footer className="fixed bottom-0 left-0 right-0 z-40 px-6 py-5 bg-gradient-to-t from-black via-black to-transparent">
-         <motion.div whileTap={{ scale: 0.98 }} className="bg-primary text-black py-4 rounded-3xl flex items-center justify-center gap-3 shadow-[0_15px_40px_-10px_rgba(236,182,19,0.7)] cursor-pointer">
-            <Info className="w-5 h-5" />
+      <footer className="fixed bottom-0 left-0 right-0 z-40 px-6 py-3 bg-gradient-to-t from-black via-black to-transparent">
+         <motion.div 
+           whileTap={{ scale: 0.98 }} 
+           onClick={() => router.push('/info')}
+           className="bg-primary text-black py-2.5 rounded-2xl flex items-center justify-center gap-3 shadow-[0_15px_40px_-10px_rgba(236,182,19,0.7)] cursor-pointer"
+         >
+            <Info className="w-4.5 h-4.5" />
             <span className="text-[10px] font-black uppercase tracking-[0.2em]">{t('more_info')}</span>
          </motion.div>
       </footer>
