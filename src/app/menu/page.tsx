@@ -70,7 +70,9 @@ export default function MenuClient() {
       alergenos:producto_alergenos(
         alergeno:alergenos(nombre_es, icono_url)
       )
-    `).order('order');
+    `)
+    .eq('is_visible', true)
+    .order('order');
     
     if (catData) setCategories(catData);
     if (prodData) setProducts(prodData);
@@ -83,7 +85,7 @@ export default function MenuClient() {
   const sections = ['comida', 'bebida', 'postre', 'vinos'];
   const currentSectionCategories = categories.filter(c => c.section === selectedSection);
   const activeCategoryId = selectedCategory || currentSectionCategories[0]?.id;
-  const displayedProducts = products.filter(p => p.category_id === activeCategoryId && (searchTerm === '' || getLoc(p, 'name').toLowerCase().includes(searchTerm.toLowerCase())));
+  const displayedProducts = products.filter(p => p.is_visible && p.category_id === activeCategoryId && (searchTerm === '' || getLoc(p, 'name').toLowerCase().includes(searchTerm.toLowerCase())));
 
   const getSectionIcon = (section: string) => {
     switch(section) {
