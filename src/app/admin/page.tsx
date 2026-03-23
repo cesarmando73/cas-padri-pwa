@@ -4,12 +4,14 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { uploadProductImage } from '@/lib/storage';
 import { translations } from '@/lib/translations';
-import { Search, Plus, Edit2, Trash2, Eye, EyeOff, LayoutDashboard, Upload, Check, X, Save, Globe, MoreHorizontal, Utensils, Coffee, LayoutGrid, Wine, Camera } from 'lucide-react';
+import { Search, Plus, Edit2, Trash2, Eye, EyeOff, LayoutDashboard, Upload, Check, X, Save, Globe, MoreHorizontal, Utensils, Coffee, LayoutGrid, Wine, Camera, LogOut } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const languages = ['es', 'ca', 'en', 'de', 'fr', 'it', 'pt'];
 
 export default function AdminDashboard() {
+  const router = useRouter();
   const [products, setProducts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -102,6 +104,11 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    router.push('/admin/login');
+  };
+
   const toggleVisibility = async (id: string, currentVisible: boolean) => {
     await supabase.from('products').update({ is_visible: !currentVisible }).eq('id', id);
   };
@@ -142,12 +149,21 @@ export default function AdminDashboard() {
   return (
     <div className="h-screen bg-black text-zinc-100 flex flex-col font-jakarta overflow-hidden">
       {/* 1. Header Fijo Superior */}
-      <header className="flex-shrink-0 bg-black border-b border-white/10 px-10 py-4 flex items-center justify-center z-40">
+      <header className="flex-shrink-0 bg-black border-b border-white/10 px-10 py-4 flex items-center justify-between z-40">
+        <div className="w-32 flex justify-start">
+             {/* Espaciador para centrar logo */}
+        </div>
         <div className="flex flex-col items-center">
           <div className="cas-padri-logo text-5xl">
             Cas Padrí
             <span className="cas-padri-year">Admin Panel • 1965</span>
           </div>
+        </div>
+        <div className="w-32 flex justify-end">
+           <button onClick={handleLogout} className="group flex items-center gap-3 px-5 py-3 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-500 hover:bg-red-500/20 transition-all">
+             <span className="text-[10px] font-black uppercase tracking-widest hidden sm:block">Salir</span>
+             <LogOut className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+           </button>
         </div>
       </header>
 
