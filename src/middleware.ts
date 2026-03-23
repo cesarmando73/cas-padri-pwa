@@ -54,17 +54,18 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  const { data: { session } } = await supabase.auth.getSession()
+  const { data: { user } } = await supabase.auth.getUser()
 
   // Proteger rutas de /admin
-  if (request.nextUrl.pathname.startsWith('/admin')) {
-    // Si no está logueado y no está en la página de login, redirigir
-    if (!session && !request.nextUrl.pathname.startsWith('/admin/login')) {
+  const isAdminPath = request.nextUrl.pathname.startsWith('/admin')
+  const isLoginPath = request.nextUrl.pathname.startsWith('/admin/login')
+
+  if (isAdminPath) {
+    if (!user && !isLoginPath) {
       return NextResponse.redirect(new URL('/admin/login', request.url))
     }
-    // Si ya está logueado e intentó entrar al login, mandarlo al panel
-    if (session && request.nextUrl.pathname.startsWith('/admin/login')) {
-        return NextResponse.redirect(new URL('/admin', request.url))
+    if (user && isLoginPath) {
+      return NextResponse.redirect(new URL('/admin', request.url))
     }
   }
 
