@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { translations } from '@/lib/translations';
-import { Search, LayoutGrid, Wine, Coffee, Utensils, Info, Camera, Globe, X } from 'lucide-react';
+import { Search, LayoutGrid, Wine, Coffee, Utensils, Info, Camera, Globe, X, Filter } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const languages = [
@@ -29,6 +29,14 @@ export default function MenuClient() {
   const [showLanguageModal, setShowLanguageModal] = useState(false);
   const [currentHeroImage, setCurrentHeroImage] = useState(0);
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
+  const [activeAllergenTooltip, setActiveAllergenTooltip] = useState<number | null>(null);
+  const [showAllergenFilter, setShowAllergenFilter] = useState(false);
+  const [excludedAllergenIds, setExcludedAllergenIds] = useState<string[]>([]);
+  const [allAllergens, setAllAllergens] = useState<any[]>([]);
+
+  useEffect(() => {
+    setActiveAllergenTooltip(null);
+  }, [selectedProduct]);
 
   const heroImages = [
     '/gallery/1_Interior.jpg',
@@ -68,14 +76,17 @@ export default function MenuClient() {
     const { data: prodData } = await supabase.from('products').select(`
       *,
       alergenos:producto_alergenos(
-        alergeno:alergenos(nombre_es, icono_url)
+        alergeno:alergenos(*)
       )
     `)
     .eq('is_visible', true)
     .order('order');
     
+    const { data: alData } = await supabase.from('alergenos').select('*').order('nombre_es');
+    
     if (catData) setCategories(catData);
     if (prodData) setProducts(prodData);
+    if (alData) setAllAllergens(alData);
     setLoading(false);
   };
 
@@ -85,7 +96,12 @@ export default function MenuClient() {
   const sections = ['comida', 'bebida', 'postre', 'vinos'];
   const currentSectionCategories = categories.filter(c => c.section === selectedSection);
   const activeCategoryId = selectedCategory || currentSectionCategories[0]?.id;
-  const displayedProducts = products.filter(p => p.is_visible && p.category_id === activeCategoryId && (searchTerm === '' || getLoc(p, 'name').toLowerCase().includes(searchTerm.toLowerCase())));
+  const displayedProducts = products.filter(p => {
+    const matchesCategory = p.is_visible && p.category_id === activeCategoryId;
+    const matchesSearch = searchTerm === '' || getLoc(p, 'name').toLowerCase().includes(searchTerm.toLowerCase());
+    const hasExcludedAllergen = p.alergenos?.some((a: any) => excludedAllergenIds.includes(a.alergeno.id));
+    return matchesCategory && matchesSearch && !hasExcludedAllergen;
+  });
 
   const getSectionIcon = (section: string) => {
     switch(section) {
@@ -185,11 +201,27 @@ export default function MenuClient() {
 
       {/* Content */}
       <div className="px-6 mt-8 space-y-8">
-        <div className="relative group">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-600 group-focus-within:text-primary transition-colors" />
-          <input type="text" placeholder={t('search_placeholder')} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-zinc-900/40 border border-white/5 rounded-2xl py-4 pl-12 pr-4 text-sm focus:outline-none focus:border-primary/30 transition-all font-medium"
-          />
+        <div className="flex gap-3">
+          <div className="relative flex-1 group">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-600 group-focus-within:text-primary transition-colors" />
+            <input type="text" placeholder={t('search_placeholder')} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full bg-zinc-900/40 border border-white/5 rounded-2xl py-4 pl-12 pr-4 text-sm focus:outline-none focus:border-primary/30 transition-all font-medium"
+            />
+          </div>
+          <button 
+            onClick={() => setShowAllergenFilter(true)}
+            className={`flex-shrink-0 h-[56px] flex items-center gap-2 px-4 rounded-2xl transition-all border border-white/10 relative active:scale-95 cursor-pointer ${excludedAllergenIds.length > 0 ? 'bg-primary text-black border-primary shadow-lg shadow-primary/40' : 'bg-zinc-900/40 text-zinc-500'}`}
+          >
+            <Filter className={`w-4 h-4 ${excludedAllergenIds.length > 0 ? 'animate-pulse' : ''}`} />
+            <span className="text-[9px] font-black uppercase text-left leading-[1.15] max-w-[65px] break-words">
+              {t('restrict_allergens')}
+            </span>
+            {excludedAllergenIds.length > 0 && (
+              <div className="absolute -top-1 -right-1 bg-red-500 text-white text-[8px] w-4 h-4 rounded-full flex items-center justify-center font-black shadow-lg border border-black/20 z-10">
+                {excludedAllergenIds.length}
+              </div>
+            )}
+          </button>
         </div>
 
         <div className="grid grid-cols-1 gap-6">
@@ -286,7 +318,10 @@ export default function MenuClient() {
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              onClick={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                setActiveAllergenTooltip(null);
+              }}
               className="w-full max-w-lg bg-zinc-900 rounded-[3rem] overflow-hidden border border-white/10 shadow-3xl flex flex-col max-h-[90vh]"
             >
               <div className="relative w-full bg-zinc-950 flex items-center justify-center p-2 min-h-[300px]">
@@ -326,8 +361,15 @@ export default function MenuClient() {
                       <p className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-600">Alérgenos / Allergens</p>
                       <div className="flex flex-wrap gap-4">
                         {selectedProduct.alergenos.map((item: any, i: number) => (
-                          <div key={i} className="group/al relative">
-                            <div className="w-11 h-11 rounded-full overflow-hidden bg-black/40 border border-white/20 flex items-center justify-center hover:bg-white/20 transition-all hover:scale-110 shadow-lg">
+                          <div 
+                            key={i} 
+                            className="group/al relative"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveAllergenTooltip(activeAllergenTooltip === i ? null : i);
+                            }}
+                          >
+                            <div className="w-11 h-11 rounded-full overflow-hidden bg-black/40 border border-white/20 flex items-center justify-center hover:bg-white/20 transition-all hover:scale-110 shadow-lg cursor-pointer">
                               <img 
                                 src={item.alergeno.icono_url} 
                                 alt={item.alergeno.nombre_es} 
@@ -336,8 +378,8 @@ export default function MenuClient() {
                               />
                             </div>
                             {/* Tooltip */}
-                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-zinc-800 text-[8px] font-black uppercase tracking-widest text-primary rounded border border-white/10 whitespace-nowrap opacity-0 group-hover/al:opacity-100 transition-opacity pointer-events-none z-30">
-                              {item.alergeno.nombre_es}
+                            <div className={`absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-zinc-800 text-[8px] font-black uppercase tracking-widest text-primary rounded border border-white/10 whitespace-nowrap transition-opacity pointer-events-none z-40 ${activeAllergenTooltip === i ? 'opacity-100 scale-100' : 'opacity-0 scale-95 group-hover/al:opacity-100 group-hover/al:scale-100'}`}>
+                              {getLoc(item.alergeno, 'nombre')}
                             </div>
                           </div>
                         ))}
@@ -358,6 +400,64 @@ export default function MenuClient() {
                 </div>
               </div>
             </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Allergen Filter Modal */}
+      <AnimatePresence>
+        {showAllergenFilter && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/90 backdrop-blur-md">
+            <div className="w-full max-w-md bg-zinc-900 rounded-[2.5rem] p-8 border border-white/10 shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
+              <div className="flex flex-col items-center mb-6">
+                <Filter className="w-10 h-10 text-primary mb-4" />
+                <h3 className="text-xl font-black text-center text-white tracking-tight">{t('allergen_filter_title')}</h3>
+                {excludedAllergenIds.length > 0 && (
+                  <button onClick={() => setExcludedAllergenIds([])} className="mt-2 text-primary text-[10px] font-black uppercase tracking-widest hover:underline">
+                    {t('clear_filters')}
+                  </button>
+                )}
+              </div>
+              
+              <div className="grid grid-cols-3 gap-3 overflow-y-auto pr-2 custom-scrollbar py-4 px-1">
+                {allAllergens.map(al => {
+                  const isExcluding = excludedAllergenIds.includes(al.id);
+                  return (
+                    <motion.button 
+                      key={al.id} 
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => {
+                        if (isExcluding) setExcludedAllergenIds(prev => prev.filter(id => id !== al.id));
+                        else setExcludedAllergenIds(prev => [...prev, al.id]);
+                      }}
+                      className={`flex flex-col items-center justify-center p-3 rounded-[2rem] border transition-all ${
+                        isExcluding 
+                          ? 'bg-primary border-primary shadow-lg shadow-primary/30 text-black' 
+                          : 'bg-zinc-900/40 border-white/10 text-zinc-500 shadow-sm'
+                      }`}
+                    >
+                      <div className={`w-11 h-11 rounded-full overflow-hidden border ${isExcluding ? 'border-black/10' : 'border-white/10'} bg-black p-0.5 mb-2 shadow-inner`}>
+                        <img 
+                          src={al.icono_url} 
+                          alt={getLoc(al, 'nombre')}
+                          className="w-full h-full object-cover rounded-full"
+                        />
+                      </div>
+                      <span className={`text-[8px] font-black uppercase tracking-tight text-center leading-tight ${isExcluding ? 'text-black' : 'text-zinc-500'}`}>
+                        {getLoc(al, 'nombre')}
+                      </span>
+                    </motion.button>
+                  );
+                })}
+              </div>
+
+              <button 
+                onClick={() => setShowAllergenFilter(false)}
+                className="mt-8 w-full bg-primary text-black py-4 rounded-2xl font-black uppercase tracking-widest text-xs"
+              >
+                OK
+              </button>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

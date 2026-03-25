@@ -3,21 +3,38 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { ArrowLeft, MapPin, Phone, Mail, Clock, Instagram, Facebook, ExternalLink } from 'lucide-react';
+import { ArrowLeft, MapPin, Phone, Mail, Clock, Instagram, Facebook, ExternalLink, Bell, BellOff } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
+import { translations } from '@/lib/translations';
+import { subscribeToPush, getSubscriptionStatus } from '@/lib/push-notifications';
 
 export default function InfoPage() {
   const router = useRouter();
   const [lang, setLang] = useState('es');
+  const [pushStatus, setPushStatus] = useState<'prompt' | 'subscribed' | 'denied' | 'unsupported' | 'loading'>('loading');
 
   useEffect(() => {
     const savedLang = localStorage.getItem('cas-padri-lang');
     if (savedLang) setLang(savedLang);
+    checkStatus();
   }, []);
 
-  const t = {
-    es: { contact: 'Contacto', address: 'Dirección', schedule: 'Horario', phone: 'Teléfono', social: 'Redes Sociales', how_to_get: 'Cómo llegar', closed: 'Cerrado' },
-    en: { contact: 'Contact', address: 'Address', schedule: 'Opening Hours', phone: 'Phone', social: 'Social Media', how_to_get: 'How to get there', closed: 'Closed' },
-  }[lang === 'es' || lang === 'ca' ? 'es' : 'en'];
+  const checkStatus = async () => {
+    const status = await getSubscriptionStatus();
+    setPushStatus(status);
+  };
+
+  const handleSubscribe = async () => {
+    setPushStatus('loading');
+    const result = await subscribeToPush(supabase);
+    if (result.success) {
+      setPushStatus('subscribed');
+    } else {
+      checkStatus();
+    }
+  };
+
+  const t = translations[lang] || translations['es'];
 
   return (
     <main className="min-h-screen bg-black text-white font-jakarta pb-12 overflow-x-hidden">
@@ -50,7 +67,7 @@ export default function InfoPage() {
           className="space-y-2 text-center"
         >
           <span className="text-[10px] font-black uppercase tracking-[0.4em] text-primary">Mallorca • Est. 1965</span>
-          <h1 className="text-4xl font-black tracking-tighter italic">{t.contact}</h1>
+          <h1 className="text-4xl font-black tracking-tighter italic">{t['contact']}</h1>
           <div className="h-[1px] w-12 bg-primary/40 mx-auto mt-4" />
         </motion.div>
 
@@ -68,7 +85,7 @@ export default function InfoPage() {
               <div className="p-3 rounded-2xl bg-primary/10 border border-primary/20">
                 <MapPin className="w-5 h-5 text-primary" />
               </div>
-              <h3 className="font-black text-[12px] uppercase tracking-widest text-zinc-400">{t.address}</h3>
+              <h3 className="font-black text-[12px] uppercase tracking-widest text-zinc-400">{t['address']}</h3>
             </div>
             <p className="text-sm font-medium leading-relaxed opacity-90 pl-1">
               Carrer Marina, 20,<br />
@@ -80,7 +97,7 @@ export default function InfoPage() {
               rel="noopener noreferrer"
               className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-primary pt-2 group-hover:translate-x-1 transition-transform"
             >
-              <ExternalLink className="w-3.5 h-3.5" /> {t.how_to_get}
+              <ExternalLink className="w-3.5 h-3.5" /> {t['how_to_get']}
             </a>
           </motion.div>
 
@@ -97,7 +114,7 @@ export default function InfoPage() {
                 <Phone className="w-5 h-5 text-primary" />
               </div>
               <div className="space-y-1">
-                <h3 className="font-black text-[10px] uppercase tracking-widest text-zinc-400">{t.phone}</h3>
+                <h3 className="font-black text-[10px] uppercase tracking-widest text-zinc-400">{t['phone']}</h3>
                 <p className="text-lg font-black group-hover:text-primary transition-colors">+34 971 85 01 77</p>
               </div>
             </motion.a>
@@ -113,7 +130,7 @@ export default function InfoPage() {
                 <Mail className="w-5 h-5 text-primary" />
               </div>
               <div className="space-y-1">
-                <h3 className="font-black text-[10px] uppercase tracking-widest text-zinc-400">Email</h3>
+                <h3 className="font-black text-[10px] uppercase tracking-widest text-zinc-400">{t['email']}</h3>
                 <p className="text-sm font-black group-hover:text-primary transition-colors">reservas@caspadri.com</p>
               </div>
             </motion.a>
@@ -130,17 +147,17 @@ export default function InfoPage() {
               <div className="p-3 rounded-2xl bg-primary/10 border border-primary/20">
                 <Clock className="w-5 h-5 text-primary" />
               </div>
-              <h3 className="font-black text-[12px] uppercase tracking-widest text-zinc-400">{t.schedule}</h3>
+              <h3 className="font-black text-[12px] uppercase tracking-widest text-zinc-400">{t['schedule']}</h3>
             </div>
             
             <div className="space-y-3 px-1">
               {[
-                { days: 'LU - MA', hours: '11:00 — 23:00' },
-                { days: 'MI', hours: t.closed, special: true },
-                { days: 'JU - DO', hours: '11:00 — 23:00' }
+                { days: t['mon_tue'], hours: '11:00 — 23:00' },
+                { days: t['wed'], hours: t['closed'], special: true },
+                { days: t['thu_sun'], hours: '11:00 — 23:00' }
               ].map((item, i) => (
                 <div key={i} className="flex justify-between items-center py-2 border-b border-white/5 last:border-0">
-                  <span className="text-xs font-black uppercase tracking-widest text-zinc-500">{item.days}</span>
+                  <span className="text-[11px] font-black uppercase tracking-tight text-zinc-500">{item.days}</span>
                   <span className={`text-xs font-bold ${item.special ? 'text-red-500/80 uppercase tracking-widest text-[9px]' : 'text-zinc-200'}`}>{item.hours}</span>
                 </div>
               ))}
@@ -172,6 +189,42 @@ export default function InfoPage() {
               <span className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-500">Facebook</span>
             </motion.a>
           </div>
+
+          {/* Push Notifications Card */}
+          {pushStatus !== 'unsupported' && (
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.7 }}
+              className="bg-primary/5 p-6 rounded-[2rem] border border-primary/20 space-y-4"
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-3 rounded-2xl bg-primary/10 border border-primary/20">
+                  {pushStatus === 'subscribed' ? <Bell className="w-5 h-5 text-primary" /> : <BellOff className="w-5 h-5 text-primary/40" />}
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-black text-[12px] uppercase tracking-widest text-primary">{t['notifications']}</h3>
+                  <p className="text-[10px] text-zinc-400 font-medium">{t['push_desc']}</p>
+                </div>
+              </div>
+              
+              <button
+                onClick={handleSubscribe}
+                disabled={pushStatus === 'subscribed' || pushStatus === 'denied' || pushStatus === 'loading'}
+                className={`w-full py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all
+                  ${pushStatus === 'subscribed' 
+                    ? 'bg-primary/20 text-primary cursor-default' 
+                    : pushStatus === 'denied'
+                    ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed'
+                    : 'bg-primary text-black active:scale-95 hover:bg-primary/90'
+                  }`}
+              >
+                {pushStatus === 'loading' ? '...' : 
+                 pushStatus === 'subscribed' ? t['push_active'] : 
+                 pushStatus === 'denied' ? t['push_denied'] : t['push_btn']}
+              </button>
+            </motion.div>
+          )}
 
         </div>
 

@@ -4,6 +4,12 @@
 CREATE TABLE IF NOT EXISTS alergenos (
     id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
     nombre_es text NOT NULL UNIQUE,
+    nombre_ca text,
+    nombre_en text,
+    nombre_de text,
+    nombre_fr text,
+    nombre_it text,
+    nombre_pt text,
     icono_url text -- URL pública de la imagen en Supabase Storage
 );
 

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { uploadProductImage } from '@/lib/storage';
 import { translations } from '@/lib/translations';
-import { Search, Plus, Edit2, Trash2, Eye, EyeOff, LayoutDashboard, Upload, Check, X, Save, Globe, MoreHorizontal, Utensils, Coffee, LayoutGrid, Wine, Camera, LogOut } from 'lucide-react';
+import { Search, Plus, Edit2, Trash2, Eye, EyeOff, LayoutDashboard, Upload, Check, X, Save, Globe, MoreHorizontal, Utensils, Coffee, LayoutGrid, Wine, Camera, LogOut, Bell, Send, Sparkles } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -23,6 +23,10 @@ export default function AdminDashboard() {
   const [uploadStatus, setUploadStatus] = useState<{ [key: string]: 'idle' | 'uploading' | 'success' | 'error' }>({});
   const [allAllergens, setAllAllergens] = useState<any[]>([]);
   const [productAllergens, setProductAllergens] = useState<string[]>([]);
+  const [isPushFormOpen, setIsPushFormOpen] = useState(false);
+  const [pushData, setPushData] = useState({ title: '', body: '', url: '' });
+  const [pushSending, setPushSending] = useState(false);
+  const [isTranslating, setIsTranslating] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -125,6 +129,62 @@ export default function AdminDashboard() {
     await supabase.from('products').update({ is_visible: !currentVisible }).eq('id', id);
   };
 
+  const handleSendPush = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPushSending(true);
+    try {
+      const response = await fetch('/api/push', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(pushData),
+      });
+      const result = await response.json();
+      if (result.success) {
+        alert(`¡Éxito! Notificación enviada a ${result.count} dispositivos.`);
+        setIsPushFormOpen(false);
+        setPushData({ title: '', body: '', url: '' });
+      } else {
+        throw new Error(result.error);
+      }
+    } catch (err: any) {
+      alert(`Error al enviar: ${err.message}`);
+    } finally {
+      setPushSending(false);
+    }
+  };
+
+  const handleTranslate = async () => {
+    if (!editingProduct.name_es && !editingProduct.desc_es) {
+      alert('⚠️ Por favor, introduce primero el nombre o la descripción en español.');
+      return;
+    }
+
+    setIsTranslating(true);
+    try {
+      const response = await fetch('/api/translate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: editingProduct.name_es,
+          description: editingProduct.desc_es
+        }),
+      });
+
+      const data = await response.json();
+      if (data.error) throw new Error(data.error);
+
+      setEditingProduct({
+        ...editingProduct,
+        ...data
+      });
+    } catch (err: any) {
+      console.error('Translate error:', err);
+      alert(`Error en traducción: ${err.message}`);
+    } finally {
+      setIsTranslating(false);
+    }
+  };
+
   const sections = ['comida', 'bebida', 'postre', 'vinos'];
   const currentSectionCategories = categories.filter(c => c.section === selectedSection);
   const activeCategoryId = selectedCategory || currentSectionCategories[0]?.id;
@@ -163,7 +223,13 @@ export default function AdminDashboard() {
       {/* 1. Header Fijo Superior */}
       <header className="flex-shrink-0 bg-black border-b border-white/10 px-10 py-2 flex items-center justify-between z-40">
         <div className="w-32 flex justify-start">
-             {/* Espaciador para centrar logo */}
+           <button 
+             onClick={() => setIsPushFormOpen(true)}
+             className="group flex items-center justify-center p-2 rounded-lg bg-primary/10 border border-primary/20 text-primary hover:bg-primary/20 transition-all"
+             title="Enviar Notificación Push"
+           >
+             <Bell className="w-4 h-4" />
+           </button>
         </div>
         <div className="flex flex-col items-center">
           <div className="cas-padri-logo text-3xl">
@@ -412,7 +478,26 @@ export default function AdminDashboard() {
                 </div>
 
                 <div className="col-span-2 space-y-6">
-                    <h3 className="text-xs font-black uppercase tracking-[0.3em] text-zinc-600 flex items-center gap-2">Traducciones</h3>
+                    <div className="flex items-center justify-between bg-zinc-800/20 p-4 rounded-[2rem] border border-white/5">
+                        <h3 className="text-xs font-black uppercase tracking-[0.3em] text-zinc-600 flex items-center gap-2">Traducciones</h3>
+                        <button 
+                            type="button"
+                            onClick={handleTranslate}
+                            disabled={isTranslating}
+                            className={`flex items-center gap-2 px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg ${
+                                isTranslating 
+                                    ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed' 
+                                    : 'bg-primary text-black hover:scale-105 active:scale-95 shadow-primary/20'
+                            }`}
+                        >
+                            {isTranslating ? (
+                                <div className="animate-spin border-2 border-zinc-500 border-t-transparent w-3 h-3 rounded-full" />
+                            ) : (
+                                <Sparkles className="w-3.5 h-3.5" />
+                            )}
+                            {isTranslating ? 'Traduciendo...' : 'Traducir con AI'}
+                        </button>
+                    </div>
                     <div className="grid grid-cols-2 gap-x-8 gap-y-6">
                       {languages.map(code => (
                         <div key={code} className="space-y-2">
@@ -513,6 +598,84 @@ export default function AdminDashboard() {
                     className="flex-[2] bg-primary text-black py-4 rounded-2xl font-black uppercase tracking-[0.2em] text-xs flex items-center justify-center gap-3 shadow-xl shadow-primary/10 hover:shadow-primary/30 active:scale-95 transition-all">
                     {isSaving ? <div className="animate-spin h-4 w-4 border-2 border-black border-t-transparent flex-shrink-0" /> : <Save className="w-4 h-4" />}
                     Guardar Cambios
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Slide-over Form for Push Notifications */}
+      <AnimatePresence>
+        {isPushFormOpen && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-end"
+          >
+            <motion.div initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', damping: 25 }}
+              className="w-full max-w-md h-full bg-zinc-900 p-10 border-l border-white/10 shadow-2xl overflow-y-auto"
+            >
+              <div className="flex items-center justify-between mb-10">
+                <div className="flex items-center gap-3">
+                   <div className="p-3 bg-primary/10 border border-primary/20 rounded-2xl">
+                      <Bell className="w-6 h-6 text-primary" />
+                   </div>
+                   <h2 className="text-2xl font-black tracking-tight italic">Enviar <span className="text-primary not-italic">Notificación</span></h2>
+                </div>
+                <button onClick={() => setIsPushFormOpen(false)} className="p-2 hover:bg-white/5 rounded-full"><X className="w-6 h-6" /></button>
+              </div>
+
+              <form onSubmit={handleSendPush} className="space-y-8">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">Título del mensaje</label>
+                  <input 
+                    type="text" 
+                    placeholder="Ej: ¡Nuevo plato disponible!" 
+                    required
+                    value={pushData.title}
+                    onChange={(e) => setPushData({...pushData, title: e.target.value})}
+                    className="w-full bg-black/60 border border-white/5 rounded-xl py-4 px-5 text-sm focus:border-primary/50 transition-all font-bold"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">Cuerpo de la notificación</label>
+                  <textarea 
+                    placeholder="Escribe aquí el contenido de la notificación..." 
+                    required
+                    value={pushData.body}
+                    onChange={(e) => setPushData({...pushData, body: e.target.value})}
+                    className="w-full bg-black/40 border border-white/5 rounded-xl py-4 px-5 text-sm focus:border-primary/50 transition-all font-medium min-h-[120px] resize-none"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">URL de destino (Opcional)</label>
+                  <input 
+                    type="text" 
+                    placeholder="Ej: /menu" 
+                    value={pushData.url}
+                    onChange={(e) => setPushData({...pushData, url: e.target.value})}
+                    className="w-full bg-black/60 border border-white/5 rounded-xl py-4 px-5 text-xs focus:border-primary/50 transition-all font-mono"
+                  />
+                  <p className="text-[10px] text-zinc-600 px-1 italic">Si se deja vacío, abrirá la página principal.</p>
+                </div>
+
+                <div className="pt-10 border-t border-white/5 mt-auto flex gap-4 text-center">
+                  <button 
+                    type="button" 
+                    onClick={() => setIsPushFormOpen(false)} 
+                    className="flex-1 py-4 border border-white/5 rounded-2xl font-black uppercase tracking-widest text-xs opacity-60 hover:opacity-100"
+                  >
+                    Cancelar
+                  </button>
+                  <button 
+                    type="submit" 
+                    disabled={pushSending}
+                    className="flex-[2] bg-primary text-black py-4 rounded-2xl font-black uppercase tracking-[0.2em] text-xs flex items-center justify-center gap-3 shadow-xl shadow-primary/10 hover:shadow-primary/30 active:scale-95 transition-all"
+                  >
+                    {pushSending ? <div className="animate-spin h-4 w-4 border-2 border-black border-t-transparent flex-shrink-0" /> : <Send className="w-4 h-4" />}
+                    ENVIAR AHORA
                   </button>
                 </div>
               </form>
