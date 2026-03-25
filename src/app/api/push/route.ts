@@ -3,19 +3,21 @@ import { NextResponse } from 'next/server';
 import webpush from 'web-push';
 import { createClient } from '@supabase/supabase-js';
 
-const vapidKeys = {
-  publicKey: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
-  privateKey: process.env.VAPID_PRIVATE_KEY!,
-};
-
-webpush.setVapidDetails(
-  `mailto:${process.env.VAPID_EMAIL || 'info@caspadri.com'}`,
-  vapidKeys.publicKey,
-  vapidKeys.privateKey
-);
-
 export async function POST(request: Request) {
   try {
+    const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+    const privateKey = process.env.VAPID_PRIVATE_KEY;
+
+    if (!publicKey || !privateKey) {
+      throw new Error('VAPID keys are not configured in environment variables');
+    }
+
+    webpush.setVapidDetails(
+      `mailto:${process.env.VAPID_EMAIL || 'info@caspadri.com'}`,
+      publicKey,
+      privateKey
+    );
+
     const { title, body, url } = await request.json();
 
     // 1. Inicializar Supabase con Service Role para leer todas las suscripciones
